@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.150.93:8000/api';
-  static const String webUrl = 'http://192.168.150.93:8000';
+  static const String baseUrl = 'http://192.168.0.17:8000/api';
+  static const String webUrl = 'http://192.168.0.17:8000';
   static const bool enableDebugLogs = true;
 
   // Enhanced debugging method

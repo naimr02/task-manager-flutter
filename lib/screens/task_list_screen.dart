@@ -19,6 +19,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  int? _selectedCategoryId; // For category filtering
+  String? _selectedPriority; // For priority filtering
+
+  final List<String> _priorities = ['low', 'medium', 'high', 'urgent'];
+
   @override
   void initState() {
     super.initState();
@@ -155,6 +160,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter tasks by selected category and priority
+    final filteredTasks = _tasks.where((t) {
+      final matchesCategory = _selectedCategoryId == null || t.categoryId == _selectedCategoryId;
+      final matchesPriority = _selectedPriority == null || t.priority == _selectedPriority;
+      return matchesCategory && matchesPriority;
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Tasks'),
@@ -191,189 +203,273 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ],
         ),
       )
-          : _tasks.isEmpty
-          ? const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.task_alt,
-              size: 80,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 20),
-            Text(
-              'No tasks yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Tap + to create your first task',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      )
-          : RefreshIndicator(
-        onRefresh: _loadData,
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _tasks.length,
-          itemBuilder: (context, index) {
-            final task = _tasks[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                title: Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (task.description != null)
-                      Text(
-                        task.description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(task.status),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            task.status.replaceAll('_', ' ').toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getPriorityColor(task.priority),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            task.priority.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+          : Column(
+        children: [
+          // Filters row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
+              children: [
+                // Category filter
+                Expanded(
+                  child: DropdownButtonFormField<int?>(
+                    value: _selectedCategoryId,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    if (task.dueDate != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Due: ${DateFormat('MMM dd, yyyy').format(task.dueDate!)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: task.dueDate!.isBefore(DateTime.now())
-                                ? Colors.red
-                                : Colors.grey[600],
-                          ),
-                        ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('All Categories'),
                       ),
-                    if (task.category != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
+                      ..._categories.map((category) => DropdownMenuItem<int?>(
+                        value: category.id,
                         child: Row(
                           children: [
                             Container(
-                              width: 12,
-                              height: 12,
+                              width: 14,
+                              height: 14,
                               decoration: BoxDecoration(
                                 color: Color(int.parse(
-                                  task.category!.color.substring(1),
+                                  category.color.substring(1),
                                   radix: 16,
                                 ) + 0xFF000000),
                                 shape: BoxShape.circle,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              task.category!.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                            const SizedBox(width: 8),
+                            Text(category.name),
                           ],
                         ),
-                      ),
-                  ],
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategoryId = value;
+                      });
+                    },
+                  ),
                 ),
-                trailing: PopupMenuButton(
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit),
-                          SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
-                      ),
+                const SizedBox(width: 12),
+                // Priority filter
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    value: _selectedPriority,
+                    decoration: const InputDecoration(
+                      labelText: 'Priority',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete'),
-                        ],
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Priorities'),
                       ),
-                    ),
-                  ],
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddEditTaskScreen(
-                            task: task,
-                            categories: _categories,
-                          ),
-                        ),
-                      );
-                      if (result == true) {
-                        _loadData();
-                      }
-                    } else if (value == 'delete') {
-                      _deleteTask(task.id);
-                    }
-                  },
+                      ..._priorities.map((priority) => DropdownMenuItem<String?>(
+                        value: priority,
+                        child: Text(priority[0].toUpperCase() + priority.substring(1)),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedPriority = value;
+                      });
+                    },
+                  ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: filteredTasks.isEmpty
+                ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.task_alt,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'No tasks yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Tap + to create your first task',
+                    style: TextStyle(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
-        ),
+            )
+                : RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: filteredTasks.length,
+                itemBuilder: (context, index) {
+                  final task = filteredTasks[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      title: Text(
+                        task.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (task.description != null)
+                            Text(
+                              task.description!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(task.status),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  task.status.replaceAll('_', ' ').toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getPriorityColor(task.priority),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  task.priority.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (task.dueDate != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Due: ${DateFormat('MMM dd, yyyy').format(task.dueDate!)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: task.dueDate!.isBefore(DateTime.now())
+                                      ? Colors.red
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          if (task.category != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Color(int.parse(
+                                        task.category!.color.substring(1),
+                                        radix: 16,
+                                      ) + 0xFF000000),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    task.category!.name,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: PopupMenuButton(
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit),
+                                SizedBox(width: 8),
+                                Text('Edit'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddEditTaskScreen(
+                                  task: task,
+                                  categories: _categories,
+                                ),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadData();
+                            }
+                          } else if (value == 'delete') {
+                            _deleteTask(task.id);
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
