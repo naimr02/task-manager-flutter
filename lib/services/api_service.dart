@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.0.17:8000/api';
-  static const String webUrl = 'http://192.168.0.17:8000';
+  static const String baseUrl = 'http://192.168.3.93:8000/api';
+  static const String webUrl = 'http://192.168.3.93:8000';
   static const bool enableDebugLogs = true;
 
   // Enhanced debugging method
@@ -95,6 +95,52 @@ class ApiService {
     } catch (e) {
       _debugLog('❌ Unexpected error: $e');
       throw Exception('Login failed: $e');
+    }
+  }
+
+  // Enhanced register method for user registration
+  static Future<Map<String, dynamic>> register(String name, String email, String password) async {
+    try {
+      final url = '$baseUrl/auth/register';
+      _debugLog('🌐 Attempting registration to: $url');
+      _debugLog('📧 Email: $email');
+      _debugLog('👤 Name: $name');
+
+      final headers = await getHeaders(requiresAuth: false);
+      final requestBody = jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        'password_confirmation': password,
+        'device_name': 'Flutter App ${Platform.operatingSystem}',
+      });
+
+      _debugLog('📤 Request headers: $headers');
+      _debugLog('📤 Request body: $requestBody');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: requestBody,
+      ).timeout(const Duration(seconds: 30));
+
+      _debugLog('📥 Response status: ${response.statusCode}');
+      _debugLog('📥 Response headers: ${response.headers}');
+      _debugLog('📥 Response body: ${response.body}');
+
+      return _handleResponse(response);
+    } on SocketException catch (e) {
+      _debugLog('❌ Network connection error: $e');
+      throw Exception('Network connection failed. Please check your internet connection.');
+    } on HttpException catch (e) {
+      _debugLog('❌ HTTP error: $e');
+      throw Exception('Server communication error: $e');
+    } on FormatException catch (e) {
+      _debugLog('❌ Data format error: $e');
+      throw Exception('Invalid server response format');
+    } catch (e) {
+      _debugLog('❌ Unexpected error: $e');
+      throw Exception('Registration failed: $e');
     }
   }
 
